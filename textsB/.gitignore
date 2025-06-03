@@ -1,0 +1,8 @@
+Home home sweet home sweet sweet home
+# Ignore build and system files
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.sln.docstates
