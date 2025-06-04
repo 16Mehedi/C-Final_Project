@@ -19,3 +19,18 @@
 - Verified build and startup of each console project with placeholder output.
 
 ### Commit Message
+
+
+## Day 2: Implement Agent File Scanning & Word Indexing
+
+### What Was Done
+- Implemented file scanning and word counting in `AgentA` and `AgentB`.
+- Word counts are stored in `WordIndex` class.
+- Applied `ProcessorAffinity` to assign CPU core for each agent.
+- Used `Thread` to perform file scanning.
+
+### Functional Verification
+- Added `.txt` files in `textsA/` and `textsB/` directories.
+- Verified word count results printed by each agent.
+
+### Commit Message
