@@ -8,9 +8,15 @@ class Program
 {
     static void Main(string[] args)
     {
-        SetProcessorAffinity(1); // Core 1
+        SetProcessorAffinity(1);
         string dirPath = args.Length > 0 ? args[0] : "./textsA";
         string pipeName = args.Length > 1 ? args[1] : "agent1";
+
+        if (!Directory.Exists(dirPath))
+        {
+            Console.WriteLine($"Directory '{dirPath}' not found. Creating...");
+            Directory.CreateDirectory(dirPath);
+        }
 
         var thread = new Thread(() => ScanAndSend(dirPath, pipeName));
         thread.Start();
@@ -19,34 +25,49 @@ class Program
 
     static void ScanAndSend(string dir, string pipe)
     {
-        var indexes = new List<WordIndex>();
-
-        foreach (var file in Directory.GetFiles(dir, "*.txt"))
+        try
         {
-            var content = File.ReadAllText(file);
-            var words = Regex.Matches(content.ToLower(), @"\b\w+\b");
-            var count = new Dictionary<string, int>();
+            var indexes = new List<WordIndex>();
+            var files = Directory.GetFiles(dir, "*.txt");
 
-            foreach (Match word in words)
+            if (files.Length == 0)
             {
-                count[word.Value] = count.TryGetValue(word.Value, out int c) ? c + 1 : 1;
+                Console.WriteLine("No .txt files found in directory.");
+                return;
             }
 
-            indexes.Add(new WordIndex
+            foreach (var file in files)
             {
-                FileName = Path.GetFileName(file),
-                WordCounts = count
-            });
-        }
+                var content = File.ReadAllText(file);
+                var words = Regex.Matches(content.ToLower(), @"\b\w+\b");
+                var count = new Dictionary<string, int>();
 
-        using var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out);
-        client.Connect();
+                foreach (Match word in words)
+                {
+                    count[word.Value] = count.TryGetValue(word.Value, out int c) ? c + 1 : 1;
+                }
 
-        var formatter = new BinaryFormatter();
+                indexes.Add(new WordIndex
+                {
+                    FileName = Path.GetFileName(file),
+                    WordCounts = count
+                });
+            }
 
+            using var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out);
+            client.Connect();
+
+            var formatter = new BinaryFormatter();
 #pragma warning disable SYSLIB0011
-        formatter.Serialize(client, indexes);
+            formatter.Serialize(client, indexes);
 #pragma warning restore SYSLIB0011
+
+            Console.WriteLine($"Data sent to master via pipe: {pipe}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in ScanAndSend: {ex.Message}");
+        }
     }
 
     static void SetProcessorAffinity(int core)

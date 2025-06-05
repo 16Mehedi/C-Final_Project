@@ -5,52 +5,61 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 class Program
 {
+    static List<WordIndex> allIndexes = new();
+
     static void Main()
     {
-        SetProcessorAffinity(3); // Core 3
-
+        SetProcessorAffinity(2);
         Console.WriteLine("Waiting for AgentA...");
-        var threadA = new Thread(() => ReceiveFromPipe("agent1"));
-        threadA.Start();
+        var t1 = new Thread(() => ReceiveFromPipe("agent1"));
+        t1.Start();
 
         Console.WriteLine("Waiting for AgentB...");
-        var threadB = new Thread(() => ReceiveFromPipe("agent2"));
-        threadB.Start();
+        var t2 = new Thread(() => ReceiveFromPipe("agent2"));
+        t2.Start();
 
-        threadA.Join();
-        threadB.Join();
+        t1.Join();
+        t2.Join();
 
-        PrintResults();
-        Console.WriteLine("\n? Done. Press any key to exit.");
+        Console.WriteLine("\nThe master process prints a consolidated word index:");
+        PrintResults(allIndexes);
+        Console.WriteLine("\n✅ Done. Press any key to exit.");
         Console.ReadKey();
     }
 
-    static readonly List<WordIndex> AllResults = new();
-    static readonly object LockObj = new();
-
     static void ReceiveFromPipe(string pipeName)
     {
-        using var server = new NamedPipeServerStream(pipeName, PipeDirection.In);
-        server.WaitForConnection();
+        try
+        {
+            using var server = new NamedPipeServerStream(pipeName, PipeDirection.In);
+            server.WaitForConnection();
 
-        var formatter = new BinaryFormatter();
+            var formatter = new BinaryFormatter();
 #pragma warning disable SYSLIB0011
-        var data = (List<WordIndex>)formatter.Deserialize(server);
+            var indexes = (List<WordIndex>)formatter.Deserialize(server);
 #pragma warning restore SYSLIB0011
 
-        lock (LockObj)
+            lock (allIndexes)
+            {
+                allIndexes.AddRange(indexes);
+            }
+
+            Console.WriteLine($"✅ Received data from {pipeName}");
+        }
+        catch (Exception ex)
         {
-            AllResults.AddRange(data);
+            Console.WriteLine($"❌ Error receiving from {pipeName}: {ex.Message}");
         }
     }
 
-    static void PrintResults()
+    static void PrintResults(List<WordIndex> indexes)
     {
-        Console.WriteLine("\nThe master process prints a consolidated word index:");
-        foreach (var index in AllResults)
+        foreach (var index in indexes)
         {
             foreach (var kv in index.WordCounts)
+            {
                 Console.WriteLine($"{index.FileName}: {kv.Key}: {kv.Value}");
+            }
         }
     }
 
