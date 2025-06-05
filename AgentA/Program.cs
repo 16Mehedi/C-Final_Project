@@ -1,5 +1,7 @@
 ﻿using SharedLib;
 using System.Diagnostics;
+using System.IO.Pipes;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text.RegularExpressions;
 
 class Program
@@ -8,13 +10,14 @@ class Program
     {
         SetProcessorAffinity(1); // Core 1
         string dirPath = args.Length > 0 ? args[0] : "./textsA";
+        string pipeName = args.Length > 1 ? args[1] : "agent1";
 
-        var thread = new Thread(() => ScanAndDisplay(dirPath));
+        var thread = new Thread(() => ScanAndSend(dirPath, pipeName));
         thread.Start();
         thread.Join();
     }
 
-    static void ScanAndDisplay(string dir)
+    static void ScanAndSend(string dir, string pipe)
     {
         var indexes = new List<WordIndex>();
 
@@ -36,12 +39,14 @@ class Program
             });
         }
 
-        foreach (var index in indexes)
-        {
-            Console.WriteLine($"AgentA - File: {index.FileName}");
-            foreach (var kv in index.WordCounts)
-                Console.WriteLine($"  {kv.Key}: {kv.Value}");
-        }
+        using var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out);
+        client.Connect();
+
+        var formatter = new BinaryFormatter();
+
+#pragma warning disable SYSLIB0011
+        formatter.Serialize(client, indexes);
+#pragma warning restore SYSLIB0011
     }
 
     static void SetProcessorAffinity(int core)
