@@ -34,3 +34,24 @@
 - Verified word count results printed by each agent.
 
 ### Commit Message
+
+## Day 3: Implement Inter-Process Communication (Named Pipes)
+
+### What Was Done
+- Agents:
+  - Scanned `.txt` files and serialized `WordIndex` lists.
+  - Sent data using `NamedPipeClientStream` to the Master.
+- Master:
+  - Used `NamedPipeServerStream` to receive data from both `AgentA` and `AgentB`.
+  - Used `Thread` to listen on both pipes concurrently.
+  - Deserialized and stored results in a shared list.
+- Used `BinaryFormatter` for serialization (with suppression of warnings).
+- Output confirmed both agents successfully sent data.
+
+### Functional Verification
+- Started Master process first.
+- Then ran AgentA and AgentB.
+- Verified that Master received and printed word counts from both agents.
+
+### Commit Message
+
