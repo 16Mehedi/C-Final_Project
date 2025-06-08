@@ -75,6 +75,9 @@
 
 ### Commit Message
 
+
+
+
 ## Day 5: Final Integration, Testing & Documentation
 
 ### What Was Changed
@@ -84,11 +87,8 @@
   - AgentB → Core 2
 - Master process waits for both agents, then prints all word counts per file.
 - Resolved `.swp` Vim temporary file issue during Git commits.
-- Wrote complete and human-friendly `README.md`.
-- Manually created UML diagram to represent:
-  - Communication between agents and master
-  - Shared class (`WordIndex`)
-  - Folder structure
+- Manually created UML diagram 
+
 
 ### Final Testing
 - Ran full test:
