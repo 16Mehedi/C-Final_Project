@@ -1,4 +1,3 @@
-
 # Distributed Word Indexing System
 
 ## Day 1: Project Initialization
@@ -19,7 +18,9 @@
 - Verified build and startup of each console project with placeholder output.
 
 ### Commit Message
+``Initial solution structure created with projects and shared library setup``
 
+---
 
 ## Day 2: Implement Agent File Scanning & Word Indexing
 
@@ -34,6 +35,7 @@
 - Verified word count results printed by each agent.
 
 ### Commit Message
+
 
 ## Day 3: Implement Inter-Process Communication (Named Pipes)
 
@@ -55,3 +57,50 @@
 
 ### Commit Message
 
+
+## Day 4: Replaced Legacy Code & Improved Flexibility
+
+### What Was Changed
+- Replaced legacy `BinaryFormatter` with modern and safer `System.Text.Json` for serialization.
+- Agents now accept command-line arguments:
+  - First argument: directory path to scan (e.g. `./texts`)
+  - Second argument: pipe name (e.g. `agent1`)
+- Defaults are used if arguments are missing.
+- Cleaned up code using `using` statements and simplified the threading model.
+- Each `.txt` file scanned for words using regular expressions and lowercase normalization.
+
+### Functional Verification
+- Tested both agents with and without arguments.
+- Confirmed data sent over named pipes to the master in JSON format.
+
+### Commit Message
+
+## Day 5: Final Integration, Testing & Documentation
+
+### What Was Changed
+- Set processor affinity in all apps:
+  - Master → Core 0
+  - AgentA → Core 1
+  - AgentB → Core 2
+- Master process waits for both agents, then prints all word counts per file.
+- Resolved `.swp` Vim temporary file issue during Git commits.
+- Wrote complete and human-friendly `README.md`.
+- Manually created UML diagram to represent:
+  - Communication between agents and master
+  - Shared class (`WordIndex`)
+  - Folder structure
+
+### Final Testing
+- Ran full test:
+  - Master first
+  - Then AgentA and AgentB
+- Verified complete output with word counts from both directories.
+
+### Commit Message
+
+
+## How I Ran
+
+1. **Start the Masster and run without debugging then it shows the output like "Waiting for AgentA"
+2. Then i run AgentA  using another terminal and saw in masters terminal now it shows "Waiting for AgentA and AgentB"
+3. then i run AgentB using another terminal and saw in master terminal it shows final output 
