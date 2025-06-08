@@ -1,70 +1,56 @@
 ﻿using SharedLib;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
 
 class Program
 {
-    static List<WordIndex> allIndexes = new();
-
     static void Main()
     {
-        SetProcessorAffinity(2);
+        SetProcessorAffinity(0); // Use core 0 for master
+
+        var allIndexes = new List<WordIndex>();
+
         Console.WriteLine("Waiting for AgentA...");
-        var t1 = new Thread(() => ReceiveFromPipe("agent1"));
-        t1.Start();
+        allIndexes.AddRange(ReceiveFromPipe("agent1"));
 
         Console.WriteLine("Waiting for AgentB...");
-        var t2 = new Thread(() => ReceiveFromPipe("agent2"));
-        t2.Start();
-
-        t1.Join();
-        t2.Join();
+        allIndexes.AddRange(ReceiveFromPipe("agent2"));
 
         Console.WriteLine("\nThe master process prints a consolidated word index:");
-        PrintResults(allIndexes);
-        Console.WriteLine("\n✅ Done. Press any key to exit.");
-        Console.ReadKey();
-    }
-
-    static void ReceiveFromPipe(string pipeName)
-    {
-        try
-        {
-            using var server = new NamedPipeServerStream(pipeName, PipeDirection.In);
-            server.WaitForConnection();
-
-            var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            var indexes = (List<WordIndex>)formatter.Deserialize(server);
-#pragma warning restore SYSLIB0011
-
-            lock (allIndexes)
-            {
-                allIndexes.AddRange(indexes);
-            }
-
-            Console.WriteLine($"✅ Received data from {pipeName}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error receiving from {pipeName}: {ex.Message}");
-        }
-    }
-
-    static void PrintResults(List<WordIndex> indexes)
-    {
-        foreach (var index in indexes)
+        foreach (var index in allIndexes)
         {
             foreach (var kv in index.WordCounts)
             {
                 Console.WriteLine($"{index.FileName}: {kv.Key}: {kv.Value}");
             }
         }
+
+        Console.WriteLine("\n✅ Done. Press any key to exit.");
+        Console.ReadKey();
+    }
+
+    static List<WordIndex> ReceiveFromPipe(string pipeName)
+    {
+        // Accept 1 instance (which is correct for our simple setup)
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.In,
+            1, // max server instances
+            PipeTransmissionMode.Byte,
+            PipeOptions.None // synchronous and safe
+        );
+
+        server.WaitForConnection();
+
+        return JsonSerializer.Deserialize<List<WordIndex>>(server) ?? new();
     }
 
     static void SetProcessorAffinity(int core)
     {
-        Process.GetCurrentProcess().ProcessorAffinity = (IntPtr)(1 << core);
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+        {
+            Process.GetCurrentProcess().ProcessorAffinity = (IntPtr)(1 << core);
+        }
     }
 }

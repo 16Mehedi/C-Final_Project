@@ -6,7 +6,7 @@ namespace SharedLib
     [Serializable]
     public class WordIndex
     {
-        public string FileName { get; set; }
+        public required string FileName { get; set; }
         public Dictionary<string, int> WordCounts { get; set; } = new();
     }
 }

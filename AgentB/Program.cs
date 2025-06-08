@@ -1,23 +1,16 @@
 ﻿using SharedLib;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 class Program
 {
     static void Main(string[] args)
     {
-        SetProcessorAffinity(2); // Run on a different CPU core (e.g., core 2)
-
-        string dirPath = args.Length > 0 ? args[0] : "./textsB"; // Default directory for AgentB
-        string pipeName = args.Length > 1 ? args[1] : "agent2";  // Default pipe name for AgentB
-
-        if (!Directory.Exists(dirPath))
-        {
-            Console.WriteLine($"Directory '{dirPath}' not found. Creating...");
-            Directory.CreateDirectory(dirPath);
-        }
+        SetProcessorAffinity(2); // Changed for AgentB
+        string dirPath = args.Length > 0 ? args[0] : "./textsB";
+        string pipeName = args.Length > 1 ? args[1] : "agent2";
 
         var thread = new Thread(() => ScanAndSend(dirPath, pipeName));
         thread.Start();
@@ -26,53 +19,37 @@ class Program
 
     static void ScanAndSend(string dir, string pipe)
     {
-        try
-        {
-            var indexes = new List<WordIndex>();
-            var files = Directory.GetFiles(dir, "*.txt");
+        var indexes = new List<WordIndex>();
 
-            if (files.Length == 0)
+        foreach (var file in Directory.GetFiles(dir, "*.txt"))
+        {
+            var content = File.ReadAllText(file);
+            var words = Regex.Matches(content.ToLower(), @"\b\w+\b");
+            var count = new Dictionary<string, int>();
+
+            foreach (Match word in words)
             {
-                Console.WriteLine("No .txt files found in directory.");
-                return;
+                count[word.Value] = count.TryGetValue(word.Value, out int c) ? c + 1 : 1;
             }
 
-            foreach (var file in files)
+            indexes.Add(new WordIndex
             {
-                var content = File.ReadAllText(file);
-                var words = Regex.Matches(content.ToLower(), @"\b\w+\b");
-                var count = new Dictionary<string, int>();
-
-                foreach (Match word in words)
-                {
-                    count[word.Value] = count.TryGetValue(word.Value, out int c) ? c + 1 : 1;
-                }
-
-                indexes.Add(new WordIndex
-                {
-                    FileName = Path.GetFileName(file),
-                    WordCounts = count
-                });
-            }
-
-            using var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out);
-            client.Connect();
-
-            var formatter = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            formatter.Serialize(client, indexes);
-#pragma warning restore SYSLIB0011
-
-            Console.WriteLine($"Data sent to master via pipe: {pipe}");
+                FileName = Path.GetFileName(file),
+                WordCounts = count
+            });
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error in ScanAndSend: {ex.Message}");
-        }
+
+        using var client = new NamedPipeClientStream(".", pipe, PipeDirection.Out);
+        client.Connect();
+
+        JsonSerializer.Serialize(client, indexes);
     }
 
     static void SetProcessorAffinity(int core)
     {
-        Process.GetCurrentProcess().ProcessorAffinity = (IntPtr)(1 << core);
+        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+        {
+            Process.GetCurrentProcess().ProcessorAffinity = (IntPtr)(1 << core);
+        }
     }
 }
